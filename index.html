@@ -1,0 +1,135 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Steven Calderon</title>
+
+  <!--  Simple reset to delete the margins  -->
+  <style>
+    body { margin: 0; }
+    canvas { width: 100%; height: 100% }
+  </style>
+
+  <!--  Three.js libraries  -->
+  <script src="https://threejs.org/build/three.min.js"></script>
+  <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.6/dat.gui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+
+  <!-- Shaders -->
+  <script type="x-shader/x-vertex" id="sunVertexShader">
+        precision highp float;
+
+        attribute vec3 position;
+        attribute vec3 normal;
+        attribute vec2 uv;
+        
+        uniform mat4 projectionMatrix;
+        uniform mat4 modelViewMatrix;
+        uniform mat3 normalMatrix;
+        uniform sampler2D bumpmap;
+        
+        varying vec3 vNormal;
+        varying vec2 vUV;
+        varying float noise;
+        varying float scale;
+
+        void main() {
+            vUV = uv;
+            vNormal = vec3(normalMatrix * normal);
+
+            vec4 noiseTex = texture2D( bumpmap, vUV );
+            noise = noiseTex.r;
+
+            vec3 newPosition = position + normal * noise;
+
+            gl_Position = projectionMatrix *
+                          modelViewMatrix *
+                          vec4(newPosition,1.0);
+        }
+    </script>
+    
+    <script type="x-shader/x-fragment" id="sunFragShader">
+        precision highp float;
+
+        uniform sampler2D map;
+        
+        varying vec3 vNormal;
+        varying vec2 vUV;
+        varying float noise;
+
+        void main() {
+            vec3 materialColor = texture2D(map,vUV).rgb;
+            float fNoise = clamp(noise, 0.75, 1.0);
+
+            materialColor = fNoise * materialColor * 2.0;
+            
+            gl_FragColor = vec4(materialColor, 1.0);
+            
+        }
+    </script>
+  <script type="x-shader/x-vertex" id="earthVertexShader">
+        precision highp float;
+
+        attribute vec3 position;
+        attribute vec3 normal;
+        attribute vec2 uv;
+        
+        uniform mat4 projectionMatrix;
+        uniform mat4 modelViewMatrix;
+        uniform mat3 normalMatrix;
+        uniform sampler2D bumpmap;
+        
+        varying vec3 vNormal;
+        varying vec2 vUV;
+        varying float noise;
+        varying float scale;
+
+        void main() {
+            vUV = uv;
+            vNormal = vec3(normalMatrix * normal);
+
+            vec4 noiseTex = texture2D( bumpmap, vUV );
+            noise = noiseTex.r;
+
+            vec3 newPosition = position + normal * noise * .8;
+
+            gl_Position = projectionMatrix *
+                          modelViewMatrix *
+                          vec4(newPosition,1.0);
+        }
+    </script>
+    
+    <script type="x-shader/x-fragment" id="earthFragShader">
+        precision highp float;
+
+        uniform vec3 lightDirection;
+        uniform vec3 intensity;
+        uniform sampler2D map;
+        
+        varying vec3 vNormal;
+        varying vec2 vUV;
+        varying float noise;
+
+        void main() {
+            vec3 N = normalize(vNormal);
+            vec3 L = normalize(lightDirection)*-1.0;
+            float costheta = clamp(dot(N,L), 0.1, 0.8);
+
+            vec3 uIncidentLight = intensity * costheta;
+            vec3 materialColor = texture2D(map,vUV).rgb;
+            vec3 uReflectedColor = uIncidentLight * materialColor;
+
+            float fNoise = clamp(noise, 0.75, 1.0);
+
+            materialColor = materialColor * uReflectedColor * fNoise * 7.0;
+            
+            gl_FragColor = vec4(materialColor, 1.0);
+            
+        }
+    </script>
+</head>
+<body>
+  <!--  Our code  -->
+  <script src="app.js"></script>
+</body>
+</html>
