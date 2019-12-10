@@ -60,10 +60,6 @@ stats.domElement.style.left = '0px';
 stats.domElement.style.top = '0px';
 document.body.appendChild( stats.domElement );
 
-// Add axes helper
-var axesHelper = new THREE.AxesHelper( 50 );
-scene.add( axesHelper );
-
 // ------------------------------------------------
 // Scene Setup
 // ------------------------------------------------
@@ -71,7 +67,8 @@ scene.add( axesHelper );
 var earthSize = 5,
     moonSize = earthSize * .25,
     sunSize = earthSize * 3,
-    earthSunDistance = sunSize*3.75;
+    initEarthSunDistance = sunSize*3.75,
+    currDistance = initEarthSunDistance;
 
 // camera.position.x = sunSize*2
 camera.position.y = sunSize*5
@@ -111,6 +108,9 @@ geometry = new THREE.SphereBufferGeometry(radius, segments, rings);
 var earth = new THREE.Mesh( geometry, material );
 var lDirect = new THREE.Vector3();
 
+// Add earth to Scene
+scene.add( earth );
+
 // create the earth's material uniforms
 uniforms = {
     lightDirection: { 
@@ -121,6 +121,10 @@ uniforms = {
         type: 'vec3', 
         value: new THREE.Vector3(1, 1, 1)
     },
+    percentDistance: { 
+        type: 'f', 
+        value: 1,
+    },
     map: {
         type: "t", // a Sampler2D
         value: new THREE.TextureLoader().load("earth-map-reg.jpg",function(texture){render();}) 
@@ -130,6 +134,7 @@ uniforms = {
         value: new THREE.TextureLoader().load("earth-map-bump.jpg",function(texture){render();}) 
     },
 }
+console.log(uniforms);
 
 // create the earth's material
 material = new THREE.RawShaderMaterial({
@@ -142,13 +147,10 @@ earth.material = material;
 var earthAxis = new THREE.Vector3(0.5,0.5,0);
 var rotationSpeed = 1;
 
-// Add earth to Scene
-scene.add( earth );
-
 // Create Earth Orbit
 var orbit = new THREE.EllipseCurve(
     0,  0,            // ax, aY
-    earthSunDistance+.25, earthSunDistance,           // xRadius, yRadius
+    initEarthSunDistance*1.06, initEarthSunDistance,           // xRadius, yRadius
     0,  2 * Math.PI,  // aStartAngle, aEndAngle
     false,            // aClockwise
     0                 // aRotation
@@ -159,6 +161,7 @@ var orbitSpeed = 1;
 guiObject.earth = {
   rotationSpeed: rotationSpeed,
   orbitSpeed: orbitSpeed,
+  distance: 1
 };
 var earthFolder = guiController.addFolder("Earth");
 earthFolder.add(guiObject.earth,"rotationSpeed") 
@@ -172,6 +175,15 @@ earthFolder.add(guiObject.earth,"orbitSpeed")
   .name("Orbit Speed")
   .onChange(function(val){
     orbitSpeed = val;
+  });
+earthFolder.add(guiObject.earth,"distance") 
+  .min(0).max(2).step(.01)
+  .name("Distance from Sun")
+  .onChange(function(val){
+    orbit.xRadius = initEarthSunDistance*1.06*val;
+    orbit.yRadius = initEarthSunDistance*val;
+    currDistance = initEarthSunDistance*val;
+    console.log((initEarthSunDistance-currDistance)/initEarthSunDistance);
   });
 
 
@@ -210,6 +222,7 @@ var render = function () {
   let orbitPoint = orbit.getPoint(orbitPosition)
   earth.position.x = orbitPoint.x
   earth.position.z = orbitPoint.y
+  earth.material.uniforms.lightDirection.value = earth.position;
 
   // Rotate Earth
   earth.rotation.y += (delta * daySpeed * orbitSpeed * rotationSpeed)*24;
@@ -217,8 +230,8 @@ var render = function () {
   // Rotate Sun
   sun.rotation.y += (delta * daySpeed * orbitSpeed * rotationSpeed);
 
-  // sun.rotation.x += 0.01;
-  // sun.rotation.y += 0.01;
+  // Update Color 
+  earth.material.uniforms.percentDistance.value = (initEarthSunDistance-(earth.position.distanceTo(sun.position)))/initEarthSunDistance*-1.0;
 
   // Render the scene
   renderer.render(scene, camera);
